@@ -42,9 +42,18 @@ class ExtractPatterns
 
   # Extract set terms
   def find_known_terms(item, field, extract_list)
-    d = TermExtractor.new(JSON.pretty_generate([item]), [field], "extracted_codewords")
-    d.extractSetTerms(File.read(extract_list), ["codeword"], "case_sensitive")
+    d = TermExtractor.new(fixEncode(JSON.pretty_generate([item])), [field], "extracted_codewords")
+    d.extractSetTerms(fixEncode(File.read(extract_list)), ["codeword"], "case_sensitive")
     return JSON.parse(d.getAllOutput).first["extracted_codewords"]
+  end
+
+  # Fix encoding errors
+  def fixEncode(str)
+    if str.is_a?(String)
+      return str.unpack('C*').pack('U*')
+    else
+      return str
+    end
   end
 
   # Normalize and match synonyms and deduplicate
@@ -78,16 +87,15 @@ class ExtractPatterns
       
       @fields.each do |field|
         # Extract list results, allcaps, and known codewords from each field
-        list_results = comma_list_matches(item[field])
-        allcaps_results = get_allcaps(item[field], allcaps_length)
+        list_results = comma_list_matches(fixEncode(item[field]))
+        allcaps_results = get_allcaps(fixEncode(item[field]), allcaps_length)
         merge_results = item[merge_field] ? item[merge_field] : []
-        known_terms_results = find_known_terms(item, field, extract_list)
+        #known_terms_results = find_known_terms(fixEncode(item), field, extract_list)
                              
         # Merge results and post-process
-        item[@match_name] = item[@match_name] | normalize_results((allcaps_results | list_results | merge_results | known_terms_results),
-                                                                  extract_list)
+        item[@match_name] = item[@match_name] | normalize_results((allcaps_results | list_results | merge_results ),extract_list)
       end
-
+      
       # Push updated item out
       @output.push(item)
     end
@@ -118,17 +126,18 @@ class ExtractPatterns
   end
 end
 
-dir = "/home/shidash/Data/ICWATCH-Data/data/second_set"
-overalloutput = Array.new
-Dir.foreach(dir) do |file|
-  next if file == '.' or file == '..'
-  if !File.directory?(dir+"/"+file) && file.include?(".json") && !file.include?(".json.gpg")
-    e = ExtractPatterns.new(File.read(dir+"/"+file), ["description", "summary"], "tools_mentioned")
-    results = e.search_fields(6, "extract_list.json", "skills")
-    File.write(file.gsub(".json", "_extracted.json"), JSON.pretty_generate(results))
+#dir = "/home/shidash/Data/unknown_test"
+#overalloutput = Array.new
+#Dir.foreach(dir) do |file|
+#  next if file == '.' or file == '..'
+#  if !File.directory?(dir+"/"+file) && file.include?(".json") && !file.include?(".json.gpg")
+#    e = ExtractPatterns.new(File.read(dir+"/"+file), ["additional_info", "job_description", "skills", "summary"], "tools_mentioned")
+#    results = e.search_fields(6, "extract_list.json", nil)
+#    File.write(file.gsub(".json", "_extracted.json"), JSON.pretty_generate(results))
 #    overalloutput.concat(results)
-  end
-end
+#  end
+#end
 
-#e = ExtractPatterns.new(File.read("MECWEDB.json"), ["description", "summary"], "tools_mentioned")
+#e = ExtractPatterns.new(File.read("blackfin.json"), ["description", "summary"], "tools_mentioned")
+#puts e.search_fields(6, "extract_list.json", "skills")
 #puts e.ranked_hash_output(overalloutput)
