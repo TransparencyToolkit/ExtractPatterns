@@ -42,7 +42,7 @@ class ExtractPatterns
 
   # Extract set terms
   def find_known_terms(item, field, extract_list)
-    d = TermExtractor.new(fixEncode(JSON.pretty_generate([item])), [field], "extracted_codewords")
+    d = TermExtractor.new(JSON.pretty_generate([item]), [field], "extracted_codewords")
     d.extractSetTerms(fixEncode(File.read(extract_list)), ["codeword"], "case_sensitive")
     return JSON.parse(d.getAllOutput).first["extracted_codewords"]
   end
@@ -58,7 +58,7 @@ class ExtractPatterns
 
   # Normalize and match synonyms and deduplicate
   def normalize_results(extracted_raw, synonym_list)
-    synonyms = JSON.parse(File.read(synonym_list))
+    synonyms = JSON.parse(fixEncode(File.read(synonym_list)))
     outarr = extracted_raw.dup
 
     # Go through all extracted
@@ -87,10 +87,10 @@ class ExtractPatterns
       
       @fields.each do |field|
         # Extract list results, allcaps, and known codewords from each field
-        list_results = comma_list_matches(fixEncode(item[field]))
-        allcaps_results = get_allcaps(fixEncode(item[field]), allcaps_length)
+        list_results = comma_list_matches(item[field])
+        allcaps_results = get_allcaps(item[field], allcaps_length)
         merge_results = item[merge_field] ? item[merge_field] : []
-        #known_terms_results = find_known_terms(fixEncode(item), field, extract_list)
+        known_terms_results = find_known_terms(item, field, extract_list)
                              
         # Merge results and post-process
         item[@match_name] = item[@match_name] | normalize_results((allcaps_results | list_results | merge_results ),extract_list)
